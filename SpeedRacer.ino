@@ -1,3 +1,17 @@
+/* TODO
+     Play with the minimum threshold values to make it perfect
+     After finding the largest gap, instead of trying to turn to the maximum distance in it, turn to the middle index (adjusting for wrap around)
+     Add speed control depending on how far away the car is from obstacles and the time till the collision
+ */
+
+/* INFO
+    number of data points in cache: lidar._cached_scan_node_hq_count
+    float angle = (((float)_cached_scan_node_hq_buf[index].angle_z_q14) * 90.0 / 16384.0);
+    float distance = _cached_scan_node_hq_buf[index].dist_mm_q2 /4.0f;
+    each cache load contains a full 360 scan. If you slow down the rotations too much it will not fit and data will be lost (too many points per 360 deg for cache size allowable on ESP32)
+ */
+
+ 
 #include "rpLidar.h"
 #include "rpLidarTypes.h"
 #include <esp_task_wdt.h>
@@ -52,26 +66,20 @@ void setup() {
 
 void loop()
 {
-// number of data points in cache: lidar._cached_scan_node_hq_count
-// float angle = (((float)_cached_scan_node_hq_buf[index].angle_z_q14) * 90.0 / 16384.0);
-// float distance = _cached_scan_node_hq_buf[index].dist_mm_q2 /4.0f;
-// each cache load contains a full 360 scan. If you slow down the rotations too much it will not fit and data will be lost (too many points per 360 deg for cache size allowable on ESP32)
-//  lidar.DebugPrintMeasurePoints(lidar._cached_scan_node_hq_count);
-//  delay(1);
-//  moveMotors();
-// update arrray
-updateArray();
 
-// generate bubble
-generateBubble(true);
+  // update array
+  updateArray();
 
-// greedy actuate
-// greedyFindBestActuate();
-findBestPoint();
+  // generate bubble
+  generateBubble(true);
+
+  // greedy actuate
+  // greedyFindBestActuate();
+  findBestPoint();
 
 }
 
-static void moveMotors() {
+/*static void moveMotors() {
   throttle.writeMicroseconds(1600);
   if (count % 2) 
     steering.writeMicroseconds(1000);
@@ -81,7 +89,7 @@ static void moveMotors() {
   count++;
   delay(500);
   Serial.println("I MOVED THE MOTORS");
-}
+}*/
 
 void updateArray() {
   for(int i = 0; i < lidar._cached_scan_node_hq_count; i++) {
@@ -95,9 +103,7 @@ void updateArray() {
     else {
       Serial.println("ERROR \t Array index of lidar point not within [0,360)"); 
     }
-  }
-  
-  
+  }  
 }
 
 void generateBubble(boolean preproc) {
@@ -158,7 +164,7 @@ void greedyFindBestActuate() {
 void findBestPoint() {
   // find maximum length sequence of non zeros
 
-  largestSequence.reset();
+  largestSequence.reset(); //make sure that the previous largest sequence doesn't confound with this array's largest sequence
   
   //search for the first zero in the array and once you find it, exit the for loop
   for (int x = 0; x < 360; x++){
@@ -169,7 +175,7 @@ void findBestPoint() {
   }
 
 
-  //find sequences in the array and implement proper wrap around and find the biggest sequence
+  //find sequences in the array while implementing proper wrap around and find the biggest sequence
   for (int distancesArrayIndex = firstZeroIndex; distancesArrayIndex < 360 + firstZeroIndex; distancesArrayIndex++){
    
     //if the current index is zero, end the previous sequence, check if its bigger than the biggest sequence and if it is, save it as the biggest
@@ -202,12 +208,10 @@ void findBestPoint() {
       }
 
       
-      if (largestSequence.sequenceBeginning < largestSequence.sequenceEnd) {
+      if (largestSequence.sequenceBeginning < largestSequence.sequenceEnd)
         i++;
-      }
-      if(largestSequence.sequenceBeginning > largestSequence.sequenceEnd) {
+      if(largestSequence.sequenceBeginning > largestSequence.sequenceEnd)
         i--;
-      } 
     }
 
        
@@ -217,7 +221,7 @@ void findBestPoint() {
   int steeringAngle = (int) abs(maxIdx - 270.0)/180.0 * 1000 + 1000;
 
   // find throttle
-  int throt = 1570; // To-Do: Change the throttle based on TTC
+  int throt = 1570; 
 
   steering.writeMicroseconds(steeringAngle);
   throttle.writeMicroseconds(throt);
