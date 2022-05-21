@@ -25,7 +25,6 @@ Servo throttle;
 
 int BUBBLE_RADIUS = 50;
 int THRESH_VALUE = 2000; // 2 meters
-int count = 0;
 
 rpLidar lidar(&Serial2,115200,13,12);
 float lidarPoints [360];
@@ -35,6 +34,8 @@ float cropLidarPoints [180];
 float currentAngle;
 float currentDistance;
 float firstZeroIndex = -1;
+int slowDriveCount = 0;
+//int count = 0;
 
 Sequence largestSequence;
 Sequence currentSequence;
@@ -79,6 +80,9 @@ void loop()
 
 }
 
+//RESOURCES:
+
+
 /*static void moveMotors() {
   throttle.writeMicroseconds(1600);
   if (count % 2) 
@@ -91,7 +95,7 @@ void loop()
   Serial.println("I MOVED THE MOTORS");
 }*/
 
-void updateArray() {
+static void updateArray() {
   for(int i = 0; i < lidar._cached_scan_node_hq_count; i++) {
     currentAngle = (((float)lidar._cached_scan_node_hq_buf[i].angle_z_q14) * 90.0 / 16384.0); // TODO fix error message
     currentDistance = lidar._cached_scan_node_hq_buf[i].dist_mm_q2 /4.0f;
@@ -106,7 +110,7 @@ void updateArray() {
   }  
 }
 
-void generateBubble(boolean preproc) {
+static void generateBubble(boolean preproc) {
   int min_idx = 0;
   int min_val = 999999;
   for(int i = 0; i < 360; i++) {
@@ -131,7 +135,7 @@ void generateBubble(boolean preproc) {
   }
 }
 
-void greedyFindBestActuate() {
+static void greedyFindBestActuate() {
   // use only front 120 degrees
   int croppedPoints [120];
   for(int a = 0; a < 120; a++) {
@@ -161,7 +165,7 @@ void greedyFindBestActuate() {
   throttle.writeMicroseconds(1575);
 }
 
-void findBestPoint() {
+static void findBestPoint() {
   // find maximum length sequence of non zeros
 
   largestSequence.reset(); //make sure that the previous largest sequence doesn't confound with this array's largest sequence
@@ -187,7 +191,7 @@ void findBestPoint() {
       currentSequence.reset();
     }
 
-    //else, iterate through and add one to the end and length of the sequence until you reach a zero (Remember to implement modulus statements)
+    //else, iterate through and add one to the end and length of the sequence until you reach a zero (Remember to implement modulus statements for wrap around)
     else if (bubbleLidarPoints[distancesArrayIndex % 360] != 0){
      
       currentSequence.sequenceLength++;
@@ -214,9 +218,19 @@ void findBestPoint() {
         i--;
     }
 
-       
-  
+  /* Hypothetical code if we want to go back to implementing midpoint index in the gap instead of the largest value for some reason
 
+  int beginningIdx = largestSequence.sequenceBeginning;
+  int endIdx = largestSequence.sequenceEnd;
+
+  if (beginningIdx > endIdx) //case for if the endIdx ends up wrapping around the array
+    endIdx += 360
+
+  int midpointIdx = (beginningIdx + endIdx)/ 2;
+
+  */
+  
+  
   // find steering angle
   int steeringAngle = (int) abs(maxIdx - 270.0)/180.0 * 1000 + 1000;
 
@@ -225,4 +239,20 @@ void findBestPoint() {
 
   steering.writeMicroseconds(steeringAngle);
   throttle.writeMicroseconds(throt);
+  //slowDrive(100000000, throt, 1500);
+}
+
+
+//Since the motors we are using can't go very slow in general, this method attempts to help with it by oscilating between stopSpeed (generally 1500) and the driveSpeed
+//A higher speedFactor means that you call driveSpeed more and a lower speedFactor means that you call stopSpeed more
+//Each of these variables should be positive and make sure that the esc is on slow braking mode
+static void slowDrive(int speedFactor, float driveSpeed, float stopSpeed){
+
+  if (slowDriveCount % speedFactor == 0)
+    throttle.writeMicroseconds(stopSpeed);
+  else if(slowDriveCount % speedFactor != 0)
+    throttle.writeMicroseconds(driveSpeed);
+  
+  slowDriveCount++;
+  
 }
