@@ -25,7 +25,8 @@ Servo throttle;
 
 int BUBBLE_RADIUS = 50;
 int THRESH_VALUE = 2000; // 2 meters
-int count = 0;
+int slowDriveCount = 0;
+//int count = 0;
 
 rpLidar lidar(&Serial2,115200,13,12);
 float lidarPoints [360];
@@ -91,7 +92,7 @@ void loop()
   Serial.println("I MOVED THE MOTORS");
 }*/
 
-void updateArray() {
+static void updateArray() {
   for(int i = 0; i < lidar._cached_scan_node_hq_count; i++) {
     currentAngle = (((float)lidar._cached_scan_node_hq_buf[i].angle_z_q14) * 90.0 / 16384.0); // TODO fix error message
     currentDistance = lidar._cached_scan_node_hq_buf[i].dist_mm_q2 /4.0f;
@@ -106,7 +107,7 @@ void updateArray() {
   }  
 }
 
-void generateBubble(boolean preproc) {
+static void generateBubble(boolean preproc) {
   int min_idx = 0;
   int min_val = 999999;
   for(int i = 0; i < 360; i++) {
@@ -131,7 +132,7 @@ void generateBubble(boolean preproc) {
   }
 }
 
-void greedyFindBestActuate() {
+static void greedyFindBestActuate() {
   // use only front 120 degrees
   int croppedPoints [120];
   for(int a = 0; a < 120; a++) {
@@ -161,7 +162,7 @@ void greedyFindBestActuate() {
   throttle.writeMicroseconds(1575);
 }
 
-void findBestPoint() {
+static void findBestPoint() {
   // find maximum length sequence of non zeros
 
   largestSequence.reset(); //make sure that the previous largest sequence doesn't confound with this array's largest sequence
@@ -225,4 +226,18 @@ void findBestPoint() {
 
   steering.writeMicroseconds(steeringAngle);
   throttle.writeMicroseconds(throt);
+}
+
+
+//Since the motors we are using can't go very slow in general, this method attempts to help with it by oscilating between stopSpeed (generally 1500) and the driveSpeed
+//A higher speedFactor means that you call driveSpeed more and a lower speedFactor means that you call stopSpeed more
+//Each of these variables should be positive
+static void slowDrive(float speedFactor, float driveSpeed, float stopSpeed){
+
+  if ((int)(slowDriveCount % speedFactor) == 0)
+    throttle.writeMicroseconds(stopSpeed);
+  else if((int)(slowDriveCount % speedFactor) != 0)
+    throttle.writeMicroseconds(driveSpeed);
+    
+  slowDriveCount++;
 }
