@@ -239,7 +239,7 @@ static void findBestPoint() {
 
   steering.writeMicroseconds(steeringAngle);
   throttle.writeMicroseconds(throt);
-  //slowDrive(100000000, throt, 1500);
+  //slowDrive(100000000, (float)throt, 1500.0);
 }
 
 
@@ -248,9 +248,9 @@ static void findBestPoint() {
 //Each of these variables should be positive and make sure that the esc is on slow braking mode
 static void slowDrive(int speedFactor, float driveSpeed, float stopSpeed){
 
-  if (slowDriveCount % speedFactor == 0)
+  if ((int)(slowDriveCount % speedFactor) == 0)
     throttle.writeMicroseconds(stopSpeed);
-  else if(slowDriveCount % speedFactor != 0)
+  else if((int)(slowDriveCount % speedFactor) != 0)
     throttle.writeMicroseconds(driveSpeed);
   
   slowDriveCount++;
