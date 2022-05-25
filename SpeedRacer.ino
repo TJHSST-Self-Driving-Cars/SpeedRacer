@@ -23,8 +23,8 @@
 Servo steering;
 Servo throttle;
 
-int BUBBLE_RADIUS = 50;
-int THRESH_VALUE = 2000; // 2 meters
+#define BUBBLE_RADIUS   50
+#define THRESH_VALUE    2000 // 2 meters
 
 rpLidar lidar(&Serial2,115200,13,12);
 float lidarPoints [360];
@@ -36,6 +36,7 @@ float currentDistance;
 float firstZeroIndex = -1;
 int slowDriveCount = 0;
 //int count = 0;
+int previousIdx = 0;
 
 Sequence largestSequence;
 Sequence currentSequence;
@@ -230,16 +231,25 @@ static void findBestPoint() {
 
   */
   
-  
+  int steeringAngle;
   // find steering angle
-  int steeringAngle = (int) abs(maxIdx - 270.0)/180.0 * 1000 + 1000;
+  if(maxIdx < 30 && maxIdx > 330) {
+    steeringAngle = 1500;
+  }
+  else {
+    steeringAngle = (int) abs(maxIdx - 270.0)/180.0 * 1000 + 1000;
+  }
+  
 
   // find throttle
   int throt = 1570; 
 
   steering.writeMicroseconds(steeringAngle);
-  throttle.writeMicroseconds(throt);
-  //slowDrive(100000000, (float)throt, 1500.0);
+  // throttle.writeMicroseconds(throt);
+  slowDrive(2, (float)throt, 1500.0);
+
+  // set previous idx (for hysteresis)
+  previousIdx = maxIdx;
 }
 
 
@@ -255,4 +265,35 @@ static void slowDrive(int speedFactor, float driveSpeed, float stopSpeed){
   
   slowDriveCount++;
   
+}
+
+
+static int generateScore(Sequence c){
+  // This method uses heuristics to determine the "best gap" for racing 
+  int score = 0;
+  int avg = (c.sequenceBeginning + c.sequenceEnd)/2;
+
+  // hysteresis
+  score -= abs(avg - previousIdx); // min-180, max+180
+
+  // forwards or backwards
+  if(avg < 90 && avg > 270) {
+    score += 200; // add score to going forwards
+  }
+  else {
+    score -= 100; // decrease score for going backwards
+  }
+
+  // Max Gap;
+  score += c.sequenceLength; // if the length is bigger that's good
+
+  // Obstacle avoidance
+  if(bubbleLidarPoints[avg] > THRESH_VALUE + 250) {
+    score += 50;
+  }
+  else {
+    score -= 50;
+  }
+
+  return score;  
 }
