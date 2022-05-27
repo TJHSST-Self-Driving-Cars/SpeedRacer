@@ -28,6 +28,7 @@ Servo throttle;
 #define SPEED  1570
 #define CAR_WIDTH 0.5
 #define SAFETY_PERCENTAGE 300
+#define DIFFERENCE_THRESHOLD 2
 float radians_per_point;
 
 rpLidar lidar(&Serial2,115200,13,12);
@@ -74,7 +75,7 @@ void setup() {
 
 }
 
-void disparity_extend(float ranges[rawLen], float disparities[usedLen]);
+void disparity_extend(float ranges[rawLen], float disparities[usedLen], float differences[usedLen]);
 /*_______________ LOOP METHOD ________________ */
 void loop()
 {
@@ -83,16 +84,16 @@ void loop()
   updateArray();
 
   // generate bubble
-  // generateBubble(true);
+  generateBubble(true);
 
   // greedy actuate
   // greedyFindBestActuate();
   // findBestPoint();
-  // actuate();
+  actuate();
 
   // disparity extender
   
-  disparity_extend(lidarPoints,disparities);
+  // disparity_extend(lidarPoints,disparities, differences);
 }
 
 /* ______________________RESOURCE METHODS ______________________*/
@@ -484,10 +485,10 @@ void extend_disparities(float disparities[usedLen], float ranges[rawLen], float 
     float close_dist = ranges[close_idx];
 
     float num_points_to_cover = get_num_points_to_cover(close_dist,
-      width_to_cover)
+      width_to_cover);
     boolean cover_right = close_idx < far_idx;
     cover_points(num_points_to_cover, close_idx,
-      cover_right, ranges)
+      cover_right, ranges);
   }
 }
 
@@ -508,7 +509,7 @@ void disparity_extend(float ranges[rawLen], float disparities[usedLen],float dif
 
   int numDisparities = get_disparities(differences, disparities, DIFFERENCE_THRESHOLD);
 
-  extend_disparities(disparities, proc_ranges,
+  extend_disparities(disparities, ranges,
     CAR_WIDTH, SAFETY_PERCENTAGE, numDisparities);
   int max = 0;
   for (int i = 0; i < usedLen; i++) {
@@ -516,13 +517,13 @@ void disparity_extend(float ranges[rawLen], float disparities[usedLen],float dif
       max = i;
   }
 
-  steering_angle = get_steering_angle(max, usedLen);
-  speed = SPEED;
+  float steering_angle = get_steering_angle(max, usedLen);
+  int speed = SPEED;
 
   // on top of reference implementation, for controlling the car
-  Servo.writeMicroseconds(speed);
+  throttle.writeMicroseconds(speed);
   // calculate steeringvalue
   int steeringValue = 1500 + steering_angle * (500 / 1.57);
-  Servo.writeMicroseconds(steeringValue);
+  steering.writeMicroseconds(steeringValue);
 
 }
