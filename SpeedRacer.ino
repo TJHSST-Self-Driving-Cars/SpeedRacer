@@ -79,21 +79,19 @@ void disparity_extend(float ranges[rawLen], float disparities[usedLen], float di
 /*_______________ LOOP METHOD ________________ */
 void loop()
 {
-  delay(1000); //ONE THOUSAND
   // update array
   updateArray();
 
   // generate bubble
-  // generateBubble(true);
+  generateBubble(true);
 
   // greedy actuate
   // greedyFindBestActuate();
-  // findBestPoint();
+  findBestPointInitial();
   // actuate();
 
-  // disparity extender
-  
-  disparity_extend(lidarPoints,disparities, differences);
+  // disparity extender 
+  // disparity_extend(lidarPoints,disparities, differences);
 }
 
 /* ______________________RESOURCE METHODS ______________________*/
@@ -207,7 +205,7 @@ static void findBestPoint() {
   }
 }
 
-/*
+
 static void findBestPointInitial() {
   // find maximum length sequence of non zeros
 
@@ -247,7 +245,7 @@ static void findBestPointInitial() {
   }
 
 
-  /* Hypothetical code if we want to go back to implementing midpoint index in the gap instead of the largest value for some reason
+  /* Hypothetical code if we want to go back to implementing midpoint index in the gap instead of the largest value for some reason */
 
   int beginningIdx = largestSequence.sequenceBeginning;
   int endIdx = largestSequence.sequenceEnd;
@@ -278,7 +276,7 @@ static void findBestPointInitial() {
   // set previous idx (for hysteresis)
   previousIdx = maxIdx;
 }
-*/
+
 
 
 //Since the motors we are using can't go very slow in general, this method attempts to help with it by oscilating between stopSpeed (generally 1500) and the driveSpeed
