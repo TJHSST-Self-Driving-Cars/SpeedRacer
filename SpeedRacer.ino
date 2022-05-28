@@ -79,33 +79,35 @@ void disparity_extend(float ranges[rawLen], float disparities[usedLen], float di
 /*_______________ LOOP METHOD ________________ */
 void loop()
 {
-
+  delay(1000); //ONE THOUSAND
   // update array
   updateArray();
 
   // generate bubble
-  generateBubble(true);
+  // generateBubble(true);
 
   // greedy actuate
   // greedyFindBestActuate();
   // findBestPoint();
-  actuate();
+  // actuate();
 
   // disparity extender
   
-  // disparity_extend(lidarPoints,disparities, differences);
+  disparity_extend(lidarPoints,disparities, differences);
 }
 
 /* ______________________RESOURCE METHODS ______________________*/
 
 
+
+
 static void updateArray() {
   for(int i = 0; i < lidar._cached_scan_node_hq_count; i++) {
-    currentAngle = (((float)lidar._cached_scan_node_hq_buf[i].angle_z_q14) * 90.0 / 16384.0); // TODO fix error message
+    currentAngle = (((float)lidar._cached_scan_node_hq_buf[i].angle_z_q14) * 90.0 / 16384.0); 
     currentDistance = lidar._cached_scan_node_hq_buf[i].dist_mm_q2 /4.0f;
 
     int arrayIndex = (int)currentAngle;
-    if(arrayIndex >= 0 && arrayIndex < 360) {
+    if(arrayIndex >= 0 && arrayIndex < 360 && currentDistance > 0) {
       lidarPoints[arrayIndex] = currentDistance;
     }
     else {
@@ -429,12 +431,13 @@ int get_disparities(float differences[usedLen], float disparities[usedLen], floa
 }
 
 int get_num_points_to_cover(float dist, float width) {
-  int angle = 2 * asin(width / (2 * dist));
+  int angle = 2 * asin(clamp(width / (2 * dist), -1, 1));
   int num_points = 1 + int((angle / radians_per_point));
   return num_points;
 }
 
 void cover_points(int num_points, int start_idx, boolean cover_right, float ranges[rawLen]) {
+
 
   float new_dist = ranges[lidarRef(start_idx)];
   if (cover_right) {
@@ -498,19 +501,51 @@ float clamp(float a, float bot, float top) {
 
 float get_steering_angle(int range_index, float range_len) {
   float lidar_angle = (range_index - (range_len / 2)) * radians_per_point;
-  float steering_angle = clamp(lidar_angle, -3.1415 / 2, 3.1415 / 2);
+  float steering_angle = clamp(lidar_angle, -1, 1);
   return steering_angle;
 }
 
-void disparity_extend(float ranges[rawLen], float disparities[usedLen],float differences[usedLen]) {
+void disparity_extend(float old_ranges[rawLen], float disparities[usedLen],float differences[usedLen]) {
   float radians_per_point = (2 * 3.1415) / rawLen;
+    float ranges [rawLen];
+  for(int i = 0; i < rawLen; i++) {
+    ranges[i] = (old_ranges[(i+rawLen/2) % rawLen]) /1000.0f;
+  }
+  
 
+
+  Serial.println("ranges: ");
+  for (int i = 0; i < rawLen; i++)
+  {
+    Serial.print(ranges[i]);
+    Serial.print(",");
+  }
+  Serial.println();
   get_differences(ranges,differences);
-
+Serial.println("differences: ");
+  for (int i = 0; i < usedLen; i++)
+  {
+    Serial.print(differences[i]);
+    Serial.print(",");
+  }
+  Serial.println();
   int numDisparities = get_disparities(differences, disparities, DIFFERENCE_THRESHOLD);
-
+Serial.println("disparities: ");
+  for (int i = 0; i < numDisparities; i++)
+  {
+    Serial.print(disparities[i]);
+    Serial.print(",");
+  }
+  Serial.println();
   extend_disparities(disparities, ranges,
     CAR_WIDTH, SAFETY_PERCENTAGE, numDisparities);
+    Serial.println("ranges: ");
+  for (int i = 0; i < rawLen; i++)
+  {
+    Serial.print(ranges[i]);
+    Serial.print(",");
+  }
+  Serial.println();
   int max = 0;
   for (int i = 0; i < usedLen; i++) {
     if (ranges[lidarRef(i)] > ranges[lidarRef(max)])
@@ -523,7 +558,7 @@ void disparity_extend(float ranges[rawLen], float disparities[usedLen],float dif
   // on top of reference implementation, for controlling the car
   throttle.writeMicroseconds(speed);
   // calculate steeringvalue
-  int steeringValue = 1500 + steering_angle * (500 / 1.57);
+  int steeringValue = 1500 + steering_angle * 500;
   steering.writeMicroseconds(steeringValue);
 
 }
