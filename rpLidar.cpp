@@ -47,7 +47,7 @@ rpLidar::rpLidar(HardwareSerial *_mySerial,uint32_t baud,int rx,int tx)
 {
    scan_mutex = xSemaphoreCreateMutex();
 	serial=_mySerial;
-  serial->setRxBufferSize(256);
+  serial->setRxBufferSize(1024);
 	serial->begin(baud, SERIAL_8N1,rx,tx);
   _cached_scan_node_hq_count = 0;
   total_scan_count = 0;
